@@ -19,13 +19,27 @@ function duration(v){
  return +v;
 }
 const hubs={'slot-hub':'slot','rain-hub':'rain'};
+function eventFormat(p){
+ const format=p.format||'in-person';
+ if(!['in-person','online','hybrid'].includes(format))fail('Choose an event format.');
+ let eventLink='';
+ if(format!=='in-person'){
+  const text=line(p.eventLink,'a public HTTPS event link',550,true);
+  if(text){
+   let url;try{url=new URL(text);}catch{fail('Enter a valid public HTTPS event link.');}
+   if(url.protocol!=='https:'||url.username||url.password)fail('Enter a valid public HTTPS event link.');
+   eventLink=url.href;
+  }
+ }
+ return {format,eventLink};
+}
 function create(p,t,id){
  if(Object.hasOwn(hubs,p.kind))return {id:id(),kind:p.kind,title:line(p.title,'a public name'),note:line(p.note,'a description',240,true),where:line(p.where,'a default location',120,true),created:t,updated:t,listings:[],contacts:[]};
  if(!['slot','borrow','rain'].includes(p.kind))fail('Choose a product.');
  const b={id:id(),kind:p.kind,title:line(p.title,'a name'),created:t,updated:t};
  if(b.kind==='slot')Object.assign(b,{when:future(p.when,t),where:line(p.where,'the business and location'),category:line(p.category,'a service type',48,true),with:line(p.with,'a team member or provider',80,true),duration:duration(p.duration),rules:line(p.rules,'booking requirements',240,true),price:sum(p.price),claim:null,closed:false});
  if(b.kind==='borrow')Object.assign(b,{days:loanDays(p.days),items:[]});
- if(b.kind==='rain')Object.assign(b,{when:future(p.when,t),where:line(p.where,'the original location'),updates:[{status:'on',at:t,note:line(p.note,'an update',240,true)}]});
+ if(b.kind==='rain'){const event=eventFormat(p);Object.assign(b,{...event,when:future(p.when,t),where:event.format==='online'?'Online':line(p.where,'the original location'),updates:[{status:'on',at:t,note:line(p.note,'an update',240,true)}]});}
  return b;
 }
 function loanDays(v){if(!/^\d{1,2}$/.test(String(v))||+v<1||+v>30)fail('Choose a loan period from 1 to 30 days.');return +v}
@@ -42,7 +56,7 @@ function act(b,p,t,id,receipt){
  }else{
   const i=item(b,p.item);
   if(i.loan)fail('This item is already on loan.',409);
-  const days=b.days,due=new Date(Date.parse(t)+days*86400000).toISOString();
+  const days=i.days??b.days,due=new Date(Date.parse(t)+days*86400000).toISOString();
   i.loan={name,at:t,due,token};
  }
  b.updated=t;return token;
@@ -67,7 +81,7 @@ function edit(b,p,t,id){
    const title=line(p.title,'an item name');
    if(b.items.length>=100)fail('This board has reached 100 items.',409);
    if(b.items.some(i=>i.title.toLowerCase()===title.toLowerCase()))fail('That item name is already in use.',409);
-   b.items.push({id:id(),title,loan:null});break;
+   b.items.push({id:id(),title,category:line(p.category,'an item category',55,true),pickup:line(p.pickup,'pickup instructions',180,true),days:p.days?loanDays(p.days):null,loan:null});break;
   }
   if(p.action==='days'){b.days=loanDays(p.days);break;}
   if(p.action==='return'){
@@ -81,9 +95,18 @@ function edit(b,p,t,id){
   fail('Choose an inventory action.');
   break;
  case 'rain': {
+  if(p.action==='event-format'){
+   const event=eventFormat(p);
+   if(event.format!=='online'){
+    b.where=line(p.where,'a venue',120,true)||(b.format==='online'&&b.where==='Online'?'':b.where);
+    if(!b.where)fail('Enter a venue for an in-person or hybrid event.');
+   }
+   Object.assign(b,event);break;
+  }
   if(p.action==='announce'){b.announcement={note:line(p.note,'an announcement',240),at:t};break;}
   if(p.action==='clear-announcement'){delete b.announcement;break;}
-  if(p.action!=='update'||!Object.hasOwn(stages,p.status))fail('Choose a game status.');
+  if(p.action!=='update'||!Object.hasOwn(stages,p.status))fail('Choose an event status.');
+  if(p.status==='moved'&&b.format==='online')fail('Update the online event link in Event format.');
   const note=line(p.note,'an update',240,!['delayed','moved'].includes(p.status));
   const where=p.status==='moved'?line(p.where,'the new location'):p.status==='delayed'?(b.updates[0].where||''):'';
   if(p.status==='delayed'&&!p.when)fail('Enter the new start time.');
@@ -99,8 +122,8 @@ function view(b,t,owner=false,token){
   const {when,where,rules,price,category,with:provider,duration,claim}=b;
   return {...v,when,where,rules,price,category,with:provider,duration,state:slotState(b,t),...(owner&&claim?{claim:{name:claim.name,email:claim.email,at:claim.at}}:{}),...(token&&claim?.token===token?{receipt:{at:claim.at}}:{})};
  }
- if(kind==='borrow')return {...v,days:b.days,items:b.items.map(({id,title,loan})=>({id,title,state:loan?'out':'in',...(loan?{due:loan.due,...(owner?{name:loan.name,at:loan.at}:{}),...(token&&loan.token===token?{receipt:true}:{})}:{})})),...(owner?{history:b.history||[]}:{} )};
- return {...v,when:b.when,where:b.where,updates:b.updates,...(b.announcement?{announcement:b.announcement}:{})};
+ if(kind==='borrow')return {...v,days:b.days,items:b.items.map(({id,title,loan,category,pickup,days})=>({id,title,category:category||'',pickup:pickup||'',days:days??b.days,state:loan?'out':'in',...(loan?{due:loan.due,...(owner?{name:loan.name,at:loan.at}:{}),...(token&&loan.token===token?{receipt:true}:{})}:{})})),...(owner?{history:b.history||[]}:{} )};
+ return {...v,when:b.when,where:b.where,format:b.format||'in-person',eventLink:b.eventLink||'',updates:b.updates,...(b.announcement?{announcement:b.announcement}:{})};
 }
 function findListing(b,listing){
  if(!Object.hasOwn(hubs,b.kind)||typeof listing!=='string')fail('This listing could not be found.',404);

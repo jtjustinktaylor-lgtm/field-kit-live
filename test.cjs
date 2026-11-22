@@ -177,3 +177,28 @@ test('optional launch code gates organizer sign-up without blocking participant 
   assert.equal((await q('POST',path+'/act',{item,name:'Another participant',agree:true})).status,201);
  }finally{await s.stop();}
 });
+test('virtual events need no venue, and only a public HTTPS link is accepted',async()=>{
+ const s=await start();try{
+  const q=s.request,{path}=await board(q,'rain',{title:'Virtual class',when:plus(4),format:'online',eventLink:'https://example.org/class'});
+  const b=(await q('GET',path)).data.board;
+  assert.equal(b.format,'online');assert.equal(b.where,'Online');assert.equal(b.eventLink,'https://example.org/class');
+  assert.equal((await q('POST','/api/boards',{kind:'rain',title:'Class',when:plus(4),format:'online',eventLink:'javascript:alert(1)'})).status,400);
+  assert.equal((await q('POST','/api/boards',{kind:'rain',title:'Class',when:plus(4),format:'hybrid'})).status,400);
+  const h=await board(q,'rain',{title:'Workshop',when:plus(4),format:'online'});
+  assert.equal((await q('PATCH',h.path,{action:'event-format',format:'hybrid'},h.secret)).status,400);
+  const changed=await q('PATCH',h.path,{action:'event-format',format:'hybrid',where:'Main Hall',eventLink:'https://example.org/class'},h.secret);
+  assert.equal(changed.status,200);assert.equal(changed.data.board.where,'Main Hall');
+ }finally{await s.stop();}
+});
+test('individual loan rules override the board default without changing other items',async()=>{
+ const s=await start();try{
+  const q=s.request,{path,secret}=await board(q,'borrow',{title:'Community gear',days:5});
+  await q('PATCH',path,{action:'add',title:'Camera',category:'Video',pickup:'Return to main desk',days:'2'},secret);
+  const i=(await q('PATCH',path,{action:'add',title:'Tripod'},secret)).data.board.items;
+  assert.equal(i[0].pickup,'Return to main desk');assert.equal(i[1].days,5);
+  const r=await q('POST',path+'/act',{item:i[0].id,name:'Loan test',agree:true});
+  assert.equal(r.status,201);assert.equal(r.data.board.items[0].days,2);
+  const hours=(Date.parse(r.data.board.items[0].due)-Date.now())/3600000;
+  assert(hours>47&&hours<=48);
+ }finally{await s.stop();}
+});

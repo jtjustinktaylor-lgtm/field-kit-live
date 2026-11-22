@@ -1,9 +1,9 @@
 'use strict';
 const D=globalThis.PilotDomain, root=document.querySelector('#app');
 const kinds={
- slot:{name:'LastSlot',n:'01',glyph:'✦',color:'slot',tag:'APPOINTMENTS',head:'Turn a cancellation into a booking.',desc:'Hair, nails, barbers, pet grooming, or any appointment business. Post the opening and share one claim link.',audience:'For appointment businesses',create:'Post an opening',vision:'A shared waitlist, alerts for matching openings, and calendar sync across a team.'},
- borrow:{name:'BorrowBoard',n:'02',glyph:'↳',color:'borrow',tag:'ASSET LENDING',head:'Know who has what.',desc:'For clubs, schools, makerspaces, or teams with equipment. Give every loaner its own checkout QR.',audience:'For teams that lend equipment',create:'Start a gear board',vision:'Reservations, overdue reminders, and inventory across multiple locations.'},
- rain:{name:'RainPlan',n:'03',glyph:'↗',color:'rain',tag:'LIVE UPDATES',head:'One link when plans change.',desc:'Keep leagues, camps, classes, and organizers on the same page when the time, venue, or plan changes.',audience:'For groups that meet in person',create:'Create an event page',vision:'A schedule of events, opt-in alerts for changes, and a status page for each venue.'},
+ slot:{name:'LastSlot',n:'01',glyph:'✦',color:'slot',tag:'APPOINTMENTS',head:'Turn a cancellation into a booking.',desc:'Fill open appointments for salons, tutors, repair shops, photographers, and other service businesses. Customers can find the right opening and claim it.',audience:'For appointment businesses',create:'Post an opening',vision:'A shared waitlist, alerts for matching openings, and calendar sync across a team.'},
+ borrow:{name:'BorrowBoard',n:'02',glyph:'↳',color:'borrow',tag:'ASSET LENDING',head:'Know who has what.',desc:'Lend sports gear, classroom kits, production equipment, and work tools. Give each item its own QR code and loan terms.',audience:'For teams that lend equipment',create:'Start a gear board',vision:'Reservations, overdue reminders, and inventory across multiple locations.'},
+ rain:{name:'RainPlan',n:'03',glyph:'↗',color:'rain',tag:'LIVE UPDATES',head:'One link when plans change.',desc:'Keep classes, festivals, groups, and volunteer crews informed. Use one page for in-person, hybrid, or online events.',audience:'For groups that meet in person',create:'Create an event page',vision:'A schedule of events, opt-in alerts for changes, and a status page for each venue.'},
 };
 const slotSamples={
  hair:{title:'Cut & blow-dry',category:'Hair salon',where:'Studio Birch, 12 King St.',with:'Maya',duration:45,price:'65',blurb:'A 45-minute opening with Maya.'},
@@ -115,12 +115,18 @@ function home(){
  const expl=el('p',shared?'Publish a board, then share its public link. Keep the manager link for yourself.':'This preview saves changes in this browser. Use sample details to test the full flow.','demo-note');
  root.replaceChildren(hero,cards,expl);
 }
+const formats=[['in-person','In person'],['online','Online'],['hybrid','Hybrid']];
+function eventFields(b={}){
+ const f=input('Event format','format',{options:formats,value:b.format||'in-person'});
+ const l=input('Public event link (optional)','eventLink',{type:'url',maxlength:550,required:false,placeholder:'https://…',value:b.eventLink||''});
+ return [f,l];
+}
 function boardFields(k,where=''){
  const f=[input(k==='borrow'?'Gear board name':k==='rain'?'Event name':'Service or opening','title',{maxlength:120,...(k==='slot'?{placeholder:'e.g. Gel manicure'}:{})})];
  if(k==='borrow')f.push(input('Default loan length (days)','days',{type:'number',min:1,max:30,value:5}));
- else f.push(input(k==='slot'?'Appointment time':'Scheduled start','when',{type:'datetime-local'}),input(k==='slot'?'Business and location':'Original location','where',{maxlength:120,value:where}));
+ else f.push(input(k==='slot'?'Appointment time':'Scheduled start','when',{type:'datetime-local'}),input(k==='slot'?'Business and location':'Original location','where',{maxlength:120,value:where,required:k!=='rain',placeholder:k==='rain'?'Required for in-person and hybrid events':undefined}));
  if(k==='slot')f.push(input('Service type (optional)','category',{maxlength:48,placeholder:'e.g. Hair salon, nails, barber',required:false}),input('Provider name (optional)','with',{maxlength:80,placeholder:'e.g. Maya',required:false}),input('Duration in minutes (optional)','duration',{type:'number',min:5,max:720,placeholder:'45',required:false}),input('Booking requirements (optional)','rules',{maxlength:240,placeholder:'e.g. Existing clients only',required:false}),input('Price in CAD (optional)','price',{mode:'decimal',placeholder:'55.00',required:false}));
- if(k==='rain')f.push(input('First update (optional)','note',{maxlength:240,required:false}));
+ if(k==='rain')f.push(...eventFields(),input('First update (optional)','note',{maxlength:240,required:false}));
  return f;
 }
 function newBoard(k){
@@ -156,6 +162,15 @@ function workspace(b){
   page.append(bar);
  }
  const list=panel(slot?'Openings':'Events');
+ const find=input(slot?'Find a service or provider':'Find an event','listing-search',{type:'search',required:false});
+ const searchRows=[];
+ const results=el('p',undefined,'small');results.role='status';
+ if(b.listings.length>1)list.append(find,results);
+ find.querySelector('input').addEventListener('input',e=>{
+  const parts=e.target.value.toLowerCase().trim().split(/\s+/).filter(Boolean);
+  let n=0;for(const [row,hay] of searchRows){row.hidden=!parts.every(x=>hay.includes(x));if(!row.hidden)n++;}
+  results.textContent=n+' of '+searchRows.length+(slot?' openings':' events');
+ });
  if(!b.listings.length)list.append(el('p',slot?'No openings are available right now.':'No events have been posted yet.'));
  for(const entry of b.listings){
   const latest=entry.updates?.[0];
@@ -163,11 +178,12 @@ function workspace(b){
   const href=boardURL(b.id,secret,null,null,entry.id);
   const isOver=(latest?.when||entry.when)<=now();
   const row=add(el('article',undefined,'item'),add(el('div',undefined,'item-title'),a(entry.title,href,'item-link'),badge(tag,slot?entry.state:latest.status)),
-   el('p',date(latest?.when||entry.when)+' · '+(latest?.where||entry.where),'muted'));
+   el('p',date(latest?.when||entry.when)+' · '+(entry.format==='online'?'Online':latest?.where||entry.where),'muted'));
   if(slot&&(entry.category||Number.isInteger(entry.price)))row.append(el('p',[entry.category,Number.isInteger(entry.price)?cad(entry.price):null].filter(Boolean).join(' · ')));
+  if(!slot&&entry.format&&entry.format!=='in-person')row.append(el('p',entry.format==='online'?'Online':'Hybrid','small'));
   if(!slot&&entry.announcement)row.append(el('p',entry.announcement.note));
   if(!slot&&isOver)row.append(el('p','Past event','small'));
-  row.append(a(b.owner?'Manage '+(slot?'opening':'event'):slot?'View opening':'See event status',href,'subtle'));list.append(row);
+  row.append(a(b.owner?'Manage '+(slot?'opening':'event'):slot?'View opening':'See event status',href,'subtle'));list.append(row);searchRows.push([row,[entry.title,entry.category,entry.with,entry.where,latest?.where,entry.format].filter(Boolean).join(' ').toLowerCase()]);
  }
  page.append(list);
  if(slot&&b.owner)page.append(waitlistManager(b,mutate));
@@ -264,16 +280,16 @@ function downloadHistory(history){
 function viewBorrow(b,page,edit){
  const out=b.items.filter(i=>i.state==='out').length;
  if(b.owner){
-  page.append(form('Add a loaner item',[input('Item label','title',{maxlength:120,placeholder:'e.g. Helmet #04'})],v=>edit({action:'add',...v}),'Add item'),
+  page.append(form('Add a loaner item',[input('Item label','title',{maxlength:120,placeholder:'e.g. Camera kit #04'}),input('Category (optional)','category',{maxlength:55,required:false,placeholder:'e.g. Audio and video'}),input('Pickup and return instructions (optional)','pickup',{maxlength:180,required:false}),input('Loan length for this item (optional)','days',{type:'number',min:1,max:30,required:false})],v=>edit({action:'add',...v}),'Add item'),
    form('Add a batch',[input('One item per line','titles',{multiline:4,placeholder:'Helmet #05'})],v=>edit({action:'bulk-add',titles:v.titles.split(/\r?\n/).map(x=>x.trim()).filter(Boolean)}),'Add items'),
    form('Default loan period',[input('Days for new loans','days',{type:'number',min:1,max:30,value:b.days})],v=>edit({action:'days',...v}),'Save loan period'));
  }
  if(!b.owner&&selected){
   const i=b.items.find(x=>x.id===selected);
   if(!i){page.append(panel('Item unavailable',a('View gear list',boardURL(b.id),'button quiet')));return;}
-  page.append(panel(i.title,badge(i.state==='in'?'Available':'On loan',i.state==='in'?'available':'closed'),...(i.due?[el('p','Due '+date(i.due))]:[]),a('See all gear',boardURL(b.id),'subtle')));
+  page.append(panel(i.title,badge(i.state==='in'?'Available':'On loan',i.state==='in'?'available':'closed'),...(i.due?[el('p','Due '+date(i.due))]:[]),...(i.category?[el('p',i.category,'eyebrow')]:[]),...(i.pickup?[el('p',i.pickup)]:[]),el('p','Loan period: '+i.days+' days','muted'),a('See all gear',boardURL(b.id),'subtle')));
   if(i.receipt)page.append(panel('Checked out to you',el('p','Bring it back by '+date(i.due)+'. The gear manager will mark it returned.'),copyControl('Copy private receipt',link(boardURL(b.id,null,i.id,receipt)))));
-  if(i.state==='in')page.append(form('Check out this item',[input('Your name','name',{autocomplete:'name',maxlength:80}),check('I have this item and will bring it back in '+b.days+' days.')],v=>claim({...v,item:i.id}),'Check out'));
+  if(i.state==='in')page.append(form('Check out this item',[input('Your name','name',{autocomplete:'name',maxlength:80}),check('I have this item and will bring it back in '+i.days+' days.')],v=>claim({...v,item:i.id}),'Check out'));
   return;
  }
  const list=panel('Gear list',el('p',b.items.length+' items · '+out+' on loan','muted'));
@@ -288,7 +304,7 @@ function viewBorrow(b,page,edit){
   let matches=0;
   for(const [i,v] of entries){
    const state=i.due&&i.due<now()?'overdue':i.state;
-   const pass=i.title.toLowerCase().includes(q)&&(f==='all'||f===i.state||f===state);
+   const pass=(i.title+' '+i.category).toLowerCase().includes(q)&&(f==='all'||f===i.state||f===state);
    v.hidden=!pass;if(pass)matches++;
   }
   count.textContent=matches+' of '+entries.length+' items';
@@ -297,6 +313,7 @@ function viewBorrow(b,page,edit){
 
  for(const i of b.items){
   const v=add(el('article',undefined,'item'),add(el('div',undefined,'item-title'),el('h3',i.title),badge(i.state==='in'?'Available':i.due<now()?'Overdue':'On loan',i.state==='in'?'available':'closed')));
+  if(i.category)v.append(el('p',i.category,'small'));
   if(i.due)v.append(el('p',(i.name?i.name+' · ':'')+'Due '+date(i.due),'muted'));
   const href=boardURL(b.id,null,i.id), publicLink=link(href);
   const row=add(el('div',undefined,'actions'),a(b.owner?'Open item page':'View item',href,'subtle'));
@@ -313,10 +330,13 @@ function viewBorrow(b,page,edit){
 }
 function viewRain(b,page,edit){
  const latest=b.updates[0];
+ const format=b.format||'in-person';
  if(b.announcement)page.append(panel('Pinned announcement',el('p',b.announcement.note),el('p','Posted '+date(b.announcement.at),'muted'),...(b.owner?[actionButton('Remove announcement','clear-announcement',edit)]:[])));
- page.append(panel('Current event status',badge(D.stages[latest.status],latest.status),add(el('dl'),row(latest.status==='cancelled'?'Originally scheduled':'Start',date(latest.when||b.when)),row(latest.status==='cancelled'?'Original location':'Location',latest.where||b.where),...(latest.note?[row('Update',latest.note)]:[]),row('Posted',date(latest.at)))));
+ page.append(panel('Current event status',badge(D.stages[latest.status],latest.status),add(el('dl'),row(latest.status==='cancelled'?'Originally scheduled':'Start',date(latest.when||b.when)),row('Format',formats.find(([k])=>k===format)[1]),...(format!=='online'?[row(latest.status==='cancelled'?'Original location':'Location',latest.where||b.where)]:[]),...(latest.note?[row('Update',latest.note)]:[]),row('Posted',date(latest.at)))));
+ if(b.eventLink&&latest.status!=='cancelled')page.append(panel('Attend online',a('Open event link',b.eventLink,'button')));
  if(b.owner){
-  const status=input('Status','status',{options:Object.entries(D.stages),value:latest.status});
+  page.append(form('Event format',[...eventFields(b),input('Venue (for in-person and hybrid events)','where',{maxlength:120,required:false,value:b.where==='Online'&&b.format==='online'?'':b.where})],v=>edit({action:'event-format',...v}),'Save event format'));
+  const status=input('Status','status',{options:Object.entries(D.stages).filter(([k])=>format!=='online'||k!=='moved'||latest.status==='moved'),value:latest.status});
   const where=input('New location','where',{maxlength:120,value:latest.where||'',required:false}),when=input('New start time','when',{type:'datetime-local',required:false}), note=input('Message to attendees','note',{maxlength:240,required:false,placeholder:'e.g. Use the east entrance'});
   const sync=()=>{
    const value=status.querySelector('select').value;
