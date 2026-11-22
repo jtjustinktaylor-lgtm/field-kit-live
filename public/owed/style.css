@@ -10,3 +10,4 @@ dialog{width:min(520px,calc(100% - 24px));max-height:calc(100dvh - 28px);border:
 @media(max-width:810px){.hero{grid-template-columns:1fr;gap:35px}.hero-visual{max-width:560px}.steps{grid-template-columns:1fr}.bigger{grid-template-columns:1fr}}
 @media(max-width:560px){.shell{width:calc(100% - 30px)}.nav{min-height:67px}.desk-only{display:none}.hero{padding-block:43px}.hero-visual{padding:14px}.visual-card{margin-block:16px;padding:17px}.contents{padding-block:42px}.footer{padding-block:15px}.dash{padding-top:28px}.dash-head,.queue-head{align-items:flex-start;flex-direction:column}.stats{gap:5px}.stat,.queue{padding:11px}.stat h2{font-size:.73rem}.refund-row{align-items:flex-start}.refund-tail{align-items:flex-end;flex-direction:column;gap:4px}.demo-banner .button{flex-shrink:0}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+.eligibility{width:19px;min-height:19px;vertical-align:middle;margin:0 5px 0 0;accent-color:#446e41}
