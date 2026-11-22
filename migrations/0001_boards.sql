@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS boards (
+  id TEXT PRIMARY KEY,
+  secret TEXT NOT NULL,
+  data TEXT NOT NULL,
+  revision INTEGER NOT NULL DEFAULT 0
+);

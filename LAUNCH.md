@@ -2,8 +2,8 @@
 
 ## Set up the shared site
 
-1. Deploy this repository via its Render Blueprint. The service uses a paid Starter instance and a 1 GB persistent disk. Review the current charge in Render before creating the service. Keep one instance while using SQLite. The Dockerfile is an alternative for another provider.
-2. After it deploys, open the assigned HTTPS URL and check `/api/status` returns `{"shared":true}`. Retrieve the generated `PILOT_ACCESS_CODE` from the host's environment settings and share it only with invited organizers. Participants never need the code.
+1. Start with the [free Cloudflare setup](CLOUDFLARE.md). If using the alternative Render Blueprint, deploy this repository. The service uses a paid Starter instance and a 1 GB persistent disk. Review the current charge in Render before creating the service. Keep one instance while using SQLite. The Dockerfile is an alternative for another provider.
+2. After it deploys, open the assigned HTTPS URL and check `/api/status` returns `{"shared":true}`. Set or retrieve `PILOT_ACCESS_CODE` from the host's environment settings and share it only with invited organizers. Participants never need the code.
 3. Create one sample workspace per product. Record the private manager link separately. Open the public links on a second phone and complete a claim, checkout and event update. Delete the sample workspaces when done.
 4. Before adding real participants, agree on how long to keep booking and return records. Use the manager controls to delete completed listings, remove waitlist contacts and clear gear return history. Configure backups for the SQLite disk and test recovery. Point any custom domain at the service and set `PUBLIC_ORIGIN` to its exact HTTPS origin.
 

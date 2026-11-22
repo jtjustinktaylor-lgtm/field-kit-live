@@ -8,11 +8,15 @@ Three shared pilot apps from Open Tools Studio.
 
 [Try the browser preview](https://jtjustinktaylor-lgtm.github.io/open-tools-lab/field-kit/?v=3). Preview activity stays in that browser.
 
+## Host the shared app for free
+
+[Deploy on Cloudflare Free](https://deploy.workers.cloudflare.com/?url=https%3A%2F%2Fgithub.com%2Fjtjustinktaylor-lgtm%2Ffield-kit-live) using Workers and D1. See the [Cloudflare setup](CLOUDFLARE.md) for the access code and the first two-phone check. The browser preview is separate.
+
 ## Run the shared app
 
 Use Node 24 or later. Run `npm test`, then `npm start` and open http://127.0.0.1:8433/. The shared app saves boards in SQLite and separates public links, private manager links, and private receipts. No install step.
 
-[Deploy to Render](https://render.com/deploy?repo=https://github.com/jtjustinktaylor-lgtm/field-kit-live) with HTTPS and a persistent disk, or use the included Dockerfile with a persistent volume at `/app/data`. The Render Blueprint creates a paid Starter service and a 1 GB disk. Keep one instance while using SQLite. Set `PUBLIC_ORIGIN` to the exact HTTPS origin if using your own domain or another host.
+As a paid alternative, [deploy to Render](https://render.com/deploy?repo=https://github.com/jtjustinktaylor-lgtm/field-kit-live) with HTTPS and a persistent disk, or use the included Dockerfile with a persistent volume at `/app/data`. The Render Blueprint creates a paid Starter service and a 1 GB disk. Keep one instance while using SQLite. Set `PUBLIC_ORIGIN` to the exact HTTPS origin if using your own domain or another host.
 
 Set `PILOT_ACCESS_CODE` to limit the creation of workspaces to invited organizers (the Render Blueprint generates it). Participants never need the code. Save manager links privately: account recovery is not part of this pilot.
 

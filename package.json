@@ -1,1 +1,21 @@
-{"name":"open-tools-field-kit","version":"0.3.0","private":true,"type":"commonjs","engines":{"node":">=24"},"scripts":{"start":"node server.cjs","test":"node --test test.cjs"}}
+{
+  "name": "open-tools-field-kit",
+  "version": "0.3.0",
+  "private": true,
+  "type": "commonjs",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "node server.cjs",
+    "test": "node --test test.cjs",
+    "build": "npm test",
+    "db:migrate": "wrangler d1 migrations apply DB --remote",
+    "deploy": "npm run db:migrate && wrangler deploy",
+    "cf:dev": "wrangler dev --local",
+    "cf:test": "node --test worker.test.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "4.166.0"
+  }
+}
