@@ -1,6 +1,11 @@
 'use strict';
 const $=id=>document.getElementById(id);
 const inputs={
+ tasks:[
+  {id:'OP-013',title:'New office cleaning inquiry',kind:'New client',due:'Today',owner:'Back office',status:'todo',next:'Confirm the address and requested times before preparing a quote.',draft:'Thanks for reaching out. Could you confirm the site address, preferred cleaning days, and when you’d like to start? We’ll review availability and follow up.'},
+  {id:'OP-014',title:'Move Tuesday’s cleaning',kind:'Schedule change',due:'Today',owner:'Owner',status:'approval',next:'Confirm crew coverage before anyone promises a new time.',draft:'Thanks for the heads-up. We’re checking crew availability and will confirm the new time once it’s approved.'},
+  {id:'OP-015',title:'Restock cleaning supplies',kind:'Supplies',due:'Monday',owner:'Back office',status:'working',next:'Check the current stock and prepare a list for approval.'}
+ ],
  invoices:[
   {id:'INV-1042',company:'Cedar Dental',amount:800,status:'overdue',date:'8 days overdue'},
   {id:'INV-1045',company:'Pineview Offices',amount:480,status:'overdue',date:'4 days overdue'},
@@ -24,13 +29,16 @@ const unpaid=()=>work.invoices.filter(x=>x.status==='overdue');
 const decisions=()=>unpaid().filter(x=>!x.reviewed);
 const outstanding=()=>work.receipts.filter(x=>x.status==='missing'||!x.reviewed);
 const errors=()=>outstanding().filter(x=>x.status==='missing');
+const taskStatus={todo:'To do',working:'In progress',approval:'Needs owner',done:'Done'};
+const pending=()=>work.tasks.filter(x=>x.status!=='done');
 const count=(n,label,plural=label+'s')=>n+' '+(n===1?label:plural);
 const sum=rows=>rows.reduce((n,r)=>n+r.amount,0);
 function render(){
- $('metrics').replaceChildren(...[['Paid this week',money(sum(work.invoices.filter(x=>x.status==='paid')))],['Overdue',money(sum(unpaid()))],['Open review items',String(decisions().length+outstanding().length)]].map(([title,value])=>block('article','metric',item('span',title),item('strong',value))));
+ $('metrics').replaceChildren(...[['Paid this week',money(sum(work.invoices.filter(x=>x.status==='paid')))],['Overdue',money(sum(unpaid()))],['Open review items',String(decisions().length+outstanding().length+pending().length)]].map(([title,value])=>block('article','metric',item('span',title),item('strong',value))));
  for(const b of document.querySelectorAll('[data-view]'))b.setAttribute('aria-pressed',String(b.dataset.view===view));
- const content=$('view');content.replaceChildren(block('div','view-head',item('h2',view==='invoices'?'Invoice review':view==='receipts'?'Receipt review':'Friday report')));
+ const content=$('view');content.replaceChildren(block('div','view-head',item('h2',view==='invoices'?'Invoice review':view==='receipts'?'Receipt review':view==='tasks'?'Admin task queue':'Friday report')));
  if(view==='report'){renderReport(content);return;}
+ if(view==='tasks'){renderTasks(content);return;}
  const invoices=view==='invoices';content.append(item('p',invoices?'Review overdue reminders before taking action.':'Review proposed matches and flag what’s missing.','fine'));
  const rows=invoices?work.invoices:work.receipts;
  for(const x of rows){
@@ -64,6 +72,26 @@ function show(x,invoices){
  body.append(block('div','dialog-actions',button(label,()=>{x.reviewed=!x.reviewed;render();$('detail').close();},'button primary')));
  $('detail').showModal();
 }
+function renderTasks(content){
+ content.append(item('p','Track what’s moving, who owns the next step, and what needs the owner’s approval.','fine'));
+ for(const x of work.tasks){
+  const open=button('Open task',()=>showTask(x));open.setAttribute('aria-label','Open '+x.title);
+  const tone={todo:'sky',working:'sky',approval:'amber',done:'green'}[x.status];
+  content.append(block('article','record',block('div',null,item('h3',x.title),item('p',x.kind+' · '+x.due+' · '+x.owner,'subtle')),block('div','record-tail',badge(taskStatus[x.status],tone),open)));
+ }
+}
+function showTask(x){
+ $('detail-title').textContent=x.title;
+ const body=$('detail-body');
+ const select=item('select');select.id='task-state';select.className='task-select';
+ for(const [key,text] of Object.entries(taskStatus)){const o=item('option',text);o.value=key;select.append(o);}
+ select.value=x.status;
+ const label=block('label','task-status',item('span','Task status','task-label'),select);
+ body.replaceChildren(item('p',x.id+' · '+x.owner+' · Due '+x.due.toLowerCase(),'fine'),item('p',x.next,'task-next'),label);
+ if(x.draft)body.append(item('p',x.draft,'task-draft'),copyControl('Copy reply draft',x.draft,body));
+ body.append(button('Save task status',()=>{x.status=select.value;render();$('detail').close();},'button primary'));
+ $('detail').showModal();
+}
 function renderReport(content){
  const follow=decisions().length;
  const reviewed=unpaid().length-follow;
@@ -71,12 +99,15 @@ function renderReport(content){
  const matchCount=outstanding().length-missed;
  const lines=[
   ['Cash snapshot',money(sum(work.invoices.filter(x=>x.status==='paid')))+' paid this week · '+money(sum(unpaid()))+' overdue (CAD).'],
+  ['Admin tasks',count(pending().length,'open task')+'; '+count(pending().filter(x=>x.status==='approval').length,'owner decision')+'.'],
   ['Invoice decisions',count(follow,'reminder draft')+' to review. '+count(reviewed,'draft')+' reviewed. No reminders have been sent.'],
   ['Receipt decisions',count(matchCount,'proposed match','proposed matches')+' to review. '+count(missed,'receipt')+' still missing.'],
-  ['Next action',follow?'Review the remaining invoice drafts.':matchCount?'Review the remaining receipt matches.':missed?'Follow up on missing receipts.':'Confirm the report with the owner.']
+  ['Next action',pending().some(x=>x.status==='approval')?'Review the admin tasks that need an owner decision.':follow?'Review the remaining invoice drafts.':matchCount?'Review the remaining receipt matches.':missed?'Follow up on missing receipts.':'Confirm the report with the owner.']
  ];
  const report=block('div','report',...lines.map(([title,value])=>block('article',null,item('h3',title),item('p',value))));
- const text='Brightline Cleaning · Sample Friday report\n\n'+lines.map(([k,v])=>k+': '+v).join('\n');
+ const details=pending().map(x=>x.title+' ('+taskStatus[x.status]+', '+x.owner+'): '+x.next);
+ if(details.length)report.append(block('article',null,item('h3','Open admin tasks'),block('ul','task-list',...details.map(x=>item('li',x)))));
+ const text='Brightline Cleaning · Sample Friday report\n\n'+lines.map(([k,v])=>k+': '+v).join('\n')+(details.length?'\n\nOpen admin tasks:\n'+details.map(x=>'- '+x).join('\n'):'');
  content.append(report,block('div','report-actions',copyControl('Copy sample report',text,content),button('See pilot setup checklist',()=>$('setup').showModal(),'button primary')));
 }
 for(const b of document.querySelectorAll('[data-view]'))b.addEventListener('click',()=>{view=b.dataset.view;render();});
