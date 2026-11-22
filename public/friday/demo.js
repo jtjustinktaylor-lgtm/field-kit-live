@@ -19,7 +19,13 @@ const inputs={
   {id:'RC-023',merchant:'Wash & Fold',amount:44,status:'match',note:'Proposed match: same merchant, amount and date as the sample expense.'}
  ]
 };
-let work=structuredClone(inputs), view='invoices';
+const autoRules=[
+ ['invoice','Prepare overdue invoice reminders'],
+ ['receipt','Flag missing receipts and proposed matches'],
+ ['task','Triage admin requests and pull out owner decisions']
+];
+function newAutopilot(){return {enabled:new Set(autoRules.map(([key])=>key)),queue:new Map(),history:[],message:''};}
+let work=structuredClone(inputs), view=location.hash==='#autopilot'?'autopilot':'invoices', auto=newAutopilot();
 const money=n=>new Intl.NumberFormat('en-CA',{style:'currency',currency:'CAD'}).format(n);
 function item(tag,text,cls){const el=document.createElement(tag);if(text!==undefined)el.textContent=text;if(cls)el.className=cls;return el;}
 function block(tag,cls,...nodes){const el=item(tag,undefined,cls);el.append(...nodes);return el;}
@@ -36,7 +42,8 @@ const sum=rows=>rows.reduce((n,r)=>n+r.amount,0);
 function render(){
  $('metrics').replaceChildren(...[['Paid this week',money(sum(work.invoices.filter(x=>x.status==='paid')))],['Overdue',money(sum(unpaid()))],['Open review items',String(decisions().length+outstanding().length+pending().length)]].map(([title,value])=>block('article','metric',item('span',title),item('strong',value))));
  for(const b of document.querySelectorAll('[data-view]'))b.setAttribute('aria-pressed',String(b.dataset.view===view));
- const content=$('view');content.replaceChildren(block('div','view-head',item('h2',view==='invoices'?'Invoice review':view==='receipts'?'Receipt review':view==='tasks'?'Admin task queue':'Friday report')));
+ const content=$('view');content.replaceChildren(block('div','view-head',item('h2',view==='invoices'?'Invoice review':view==='receipts'?'Receipt review':view==='tasks'?'Admin task queue':view==='autopilot'?'Autopilot':'Friday report')));
+ if(view==='autopilot'){renderAutopilot(content);return;}
  if(view==='report'){renderReport(content);return;}
  if(view==='tasks'){renderTasks(content);return;}
  const invoices=view==='invoices';content.append(item('p',invoices?'Review overdue reminders before taking action.':'Review proposed matches and flag what’s missing.','fine'));
@@ -72,6 +79,58 @@ function show(x,invoices){
  body.append(block('div','dialog-actions',button(label,()=>{x.reviewed=!x.reviewed;render();$('detail').close();},'button primary')));
  $('detail').showModal();
 }
+function isOpen(action){
+ const x=action.record;
+ if(action.kind==='invoice')return x.status==='overdue'&&!x.reviewed;
+ if(action.kind==='receipt')return !x.reviewed;
+ return x.status!=='done';
+}
+function runAutopilot(){
+ const actions=[];
+ if(auto.enabled.has('invoice'))for(const x of unpaid())actions.push({kind:'invoice',record:x,title:'Payment reminder: '+x.company,why:x.id+' is '+x.date+'. A draft is ready.'});
+ if(auto.enabled.has('receipt'))for(const x of work.receipts)actions.push({kind:'receipt',record:x,title:(x.status==='missing'?'Request receipt: ':'Check suggested match: ')+x.merchant,why:x.note});
+ if(auto.enabled.has('task'))for(const x of pending())actions.push({kind:'task',record:x,title:x.title,why:x.next});
+ let added=0, existing=0;
+ for(const action of actions.filter(isOpen)){
+  const key=action.kind+':'+action.record.id;
+  if(auto.queue.has(key)){existing++;continue;}
+  auto.queue.set(key,action);added++;
+ }
+ auto.history.push({added,existing});
+ auto.message=count(added,'new work item')+' prepared. '+count(existing,'existing item')+' kept without duplicates.';
+ render();
+ $('autopilot-run').focus();
+}
+function renderAutopilot(content){
+ content.append(item('p','Preview a rule-based run using fictional records. It prepares work for review; it never sends emails or changes your books.','fine'));
+ const rules=block('fieldset','auto-rules',item('legend','Choose the work for this run'));
+ const run=button('Run sample autopilot',runAutopilot,'button primary');run.id='autopilot-run';run.disabled=!auto.enabled.size;
+ for(const [key,title] of autoRules){
+  const check=item('input');check.type='checkbox';check.checked=auto.enabled.has(key);
+  check.addEventListener('change',()=>{
+   if(check.checked)auto.enabled.add(key);else auto.enabled.delete(key);
+   run.disabled=!auto.enabled.size;
+  });
+  rules.append(block('label','auto-rule',check,item('span',title)));
+ }
+ const result=item('p',auto.message,'feedback');result.role='status';
+ content.append(rules,run,result);
+ const current=[...auto.queue.values()].filter(isOpen);
+ const ordered=current.sort((a,b)=>Number(b.kind==='task'&&b.record.status==='approval')-Number(a.kind==='task'&&a.record.status==='approval'));
+ content.append(block('div','view-head',item('h3','Prepared work'),badge(count(ordered.length,'open item'),'sky')));
+ if(!ordered.length)content.append(item('p',auto.history.length?'No open items in this queue.':'Run the sample to see what the back office would prepare.','fine'));
+ for(const action of ordered){
+  const owner=action.kind==='task'&&action.record.status==='approval';
+  const actionButton=button('Review',()=>action.kind==='task'?showTask(action.record):show(action.record,action.kind==='invoice'));
+  actionButton.setAttribute('aria-label','Review '+action.title);
+  content.append(block('article','record',block('div',null,item('h3',action.title),item('p',action.why,'subtle')),block('div','record-tail',badge(owner?'Owner decision':'Review',''+(owner?'amber':'sky')),actionButton)));
+ }
+ if(auto.history.length){
+  const history=block('details','auto-history',item('summary','Run history · '+auto.history.length));
+  history.append(block('ol','task-list',...auto.history.map((x,i)=>item('li','Run '+(i+1)+': '+count(x.added,'new item')+' prepared, '+count(x.existing,'existing item')+' kept.'))));
+  content.append(history);
+ }
+}
 function renderTasks(content){
  content.append(item('p','Track what’s moving, who owns the next step, and what needs the owner’s approval.','fine'));
  for(const x of work.tasks){
@@ -99,6 +158,7 @@ function renderReport(content){
  const matchCount=outstanding().length-missed;
  const lines=[
   ['Cash snapshot',money(sum(work.invoices.filter(x=>x.status==='paid')))+' paid this week · '+money(sum(unpaid()))+' overdue (CAD).'],
+  ...(auto.history.length?[['Autopilot',count(auto.history.length,'sample run')+' · '+count([...auto.queue.values()].filter(isOpen).length,'automated work item')+' open.']]:[]),
   ['Admin tasks',count(pending().length,'open task')+'; '+count(pending().filter(x=>x.status==='approval').length,'owner decision')+'.'],
   ['Invoice decisions',count(follow,'reminder draft')+' to review. '+count(reviewed,'draft')+' reviewed. No reminders have been sent.'],
   ['Receipt decisions',count(matchCount,'proposed match','proposed matches')+' to review. '+count(missed,'receipt')+' still missing.'],
@@ -112,5 +172,5 @@ function renderReport(content){
 }
 for(const b of document.querySelectorAll('[data-view]'))b.addEventListener('click',()=>{view=b.dataset.view;render();});
 for(const b of document.querySelectorAll('[data-close]'))b.addEventListener('click',()=>$(b.dataset.close).close());
-$('reset').addEventListener('click',()=>{work=structuredClone(inputs);view='invoices';render();});
+$('reset').addEventListener('click',()=>{work=structuredClone(inputs);auto=newAutopilot();view=location.hash==='#autopilot'?'autopilot':'invoices';render();});
 render();
