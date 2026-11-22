@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: field-kit-live
+    runtime: node
+    plan: starter
+    region: ohio
+    buildCommand: npm test
+    startCommand: npm start
+    healthCheckPath: /api/status
+    disk:
+      name: field-kit-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_VERSION
+        value: 24.22.0
+      - key: HOST
+        value: 0.0.0.0
+      - key: DB_PATH
+        value: /var/data/field-kit.sqlite
+      - key: PILOT_ACCESS_CODE
+        generateValue: true
