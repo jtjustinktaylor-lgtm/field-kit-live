@@ -103,3 +103,14 @@ dl{margin:8px 0 0}
 .item-link{font-size:1.04rem;font-weight:745;text-underline-offset:3px;color:#244834}
 .item .inline-control{display:flex;margin-top:6px}
 .input textarea{min-height:82px;max-width:100%;min-width:0;width:100%;resize:vertical;padding:9px;border:1px solid #aab7a5;border-radius:9px;background:#fff;color:var(--ink);font:400 1rem/1.3 system-ui,sans-serif}
+.label-sheet{margin-top:16px}
+.label-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:10px;margin-top:10px}
+.sheet-label{margin:0;padding:6px;text-align:center;border:1px dashed #657565;break-inside:avoid}
+.sheet-label img{display:block;width:92px;height:92px;margin:auto;image-rendering:pixelated}
+.sheet-label figcaption{font-size:.84rem;overflow-wrap:anywhere}
+@media print{
+ body:has(.label-sheet:not([hidden])){background:#fff;color:#000}
+ body:has(.label-sheet:not([hidden])) :is(header,footer),#app:has(.label-sheet:not([hidden]))>:not(:has(.label-sheet)),.boards:has(.label-sheet:not([hidden]))>:not(:has(.label-sheet)),.panel:has(.label-sheet:not([hidden]))>:not(.label-sheet){display:none}
+ body:has(.label-sheet:not([hidden])) :is(.wrap,#app,.boards,.panel:has(.label-sheet)){display:block;width:100%;max-width:none;margin:0;padding:0;background:#fff;border:0;box-shadow:none}
+ .label-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+}

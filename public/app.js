@@ -1,9 +1,9 @@
 'use strict';
 const D=globalThis.PilotDomain, root=document.querySelector('#app');
 const kinds={
- slot:{name:'LastSlot',n:'01',glyph:'✦',color:'slot',tag:'APPOINTMENTS',head:'Turn a cancellation into a booking.',desc:'Fill open appointments for salons, tutors, repair shops, photographers, and other service businesses. Customers can find the right opening and claim it.',audience:'For appointment businesses',create:'Post an opening',vision:'A shared waitlist, alerts for matching openings, and calendar sync across a team.'},
- borrow:{name:'BorrowBoard',n:'02',glyph:'↳',color:'borrow',tag:'ASSET LENDING',head:'Know who has what.',desc:'Lend sports gear, classroom kits, production equipment, and work tools. Give each item its own QR code and loan terms.',audience:'For teams that lend equipment',create:'Start a gear board',vision:'Reservations, overdue reminders, and inventory across multiple locations.'},
- rain:{name:'RainPlan',n:'03',glyph:'↗',color:'rain',tag:'LIVE UPDATES',head:'One link when plans change.',desc:'Keep classes, festivals, groups, and volunteer crews informed. Use one page for in-person, hybrid, or online events.',audience:'For groups that meet in person',create:'Create an event page',vision:'A schedule of events, opt-in alerts for changes, and a status page for each venue.'},
+ slot:{name:'LastSlot',n:'01',glyph:'✦',color:'slot',tag:'APPOINTMENTS',head:'Turn a cancellation into a booking.',desc:'Keep your booking system. Post only the openings you need to fill, share a link, then add the claimed appointment back to your calendar.',audience:'For appointment businesses',create:'Post an opening',vision:'A shared waitlist, alerts for matching openings, and calendar sync across a team.'},
+ borrow:{name:'BorrowBoard',n:'02',glyph:'↳',color:'borrow',tag:'ASSET LENDING',head:'Know who has what.',desc:'Paste a list of gear and print all its QR labels at once. Borrowers scan the item, check it out in their browser, and see when it is due.',audience:'For teams that lend equipment',create:'Start a gear board',vision:'Reservations, overdue reminders, and inventory across multiple locations.'},
+ rain:{name:'RainPlan',n:'03',glyph:'↗',color:'rain',tag:'LIVE UPDATES',head:'One link when plans change.',desc:'When the time, venue, or format changes, copy a ready-to-send notice into the group chat you already use. Everyone gets the same live link.',audience:'For groups and event organizers',create:'Create an event page',vision:'A schedule of events, opt-in alerts for changes, and a status page for each venue.'},
 };
 const slotSamples={
  hair:{title:'Cut & blow-dry',category:'Hair salon',where:'Studio Birch, 12 King St.',with:'Maya',duration:45,price:'65',blurb:'A 45-minute opening with Maya.'},
@@ -231,13 +231,35 @@ function viewSlot(b,page,edit){
   if(b.state==='available')actions.append(actionButton('Close opening','close',edit));
   if(b.state==='claimed')actions.append(actionButton('Release claim','release',edit,{},'Release this customer’s claim?'));
   if(b.state==='closed'&&b.when>now())actions.append(actionButton('Reopen opening','reopen',edit));
-  if(b.claim)page.append(panel('Customer claim',add(el('dl'),row('Name',b.claim.name),row('Email',b.claim.email),row('Claimed',date(b.claim.at))),actions));
+  if(b.claim)page.append(panel('Customer claim',add(el('dl'),row('Name',b.claim.name),row('Email',b.claim.email),row('Claimed',date(b.claim.at))),actions,
+   el('p','Download the appointment for your calendar. If you use booking software, mark the slot taken there too.','small'),
+   btn('Download calendar event',()=>downloadAppointment(b),'button quiet')));
   else if(actions.children.length)page.append(panel('Manage opening',actions));
  }else if(b.receipt){
   page.append(panel('You claimed this spot',el('p','Your appointment is at '+date(b.when)+'. Payment is handled by the business.'),copyControl('Copy private confirmation',link(boardURL(b.id,null,null,receipt,b.listing)))));
  }else if(b.state==='available'){
   page.append(form('Claim this opening',[el('p','The business receives your name and email to manage the booking. They don’t appear on the public page.','muted'),input('Your name','name',{autocomplete:'name',maxlength:80}),input('Your email','email',{type:'email',autocomplete:'email',maxlength:160}),check(b.rules?'I meet the booking requirements.':'I can make this appointment.')],claim,'Claim appointment'));
  }else page.append(panel('This opening is no longer available',el('p','Check with the business for its next opening.')));
+}
+function downloadAppointment(b){
+ const utc=value=>new Date(value).toISOString().replace(/[-:]/g,'').replace(/\.\d{3}Z$/,'Z');
+ const encode=value=>String(value).replaceAll('\\','\\\\').replace(/\r\n|\r|\n/g,'\\n').replaceAll(',','\\,').replaceAll(';','\\;');
+ const encoder=new TextEncoder();
+ const fold=line=>{
+  let out='', bytes=0;
+  for(const ch of line){
+   const size=encoder.encode(ch).length;
+   if(bytes+size>75){out+='\r\n ';bytes=1;}
+   out+=ch;bytes+=size;
+  }
+  return out;
+ };
+ const lines=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Field Kit//LastSlot//EN','BEGIN:VEVENT',
+  'UID:lastslot-'+b.id+(b.listing?'-'+b.listing:'')+'@'+location.hostname,'DTSTAMP:'+utc(now()),
+  'DTSTART:'+utc(b.when),...(b.duration?['DTEND:'+utc(+new Date(b.when)+b.duration*60000)]:[]),
+  'SUMMARY:'+encode(b.title),'LOCATION:'+encode(b.where),'END:VEVENT','END:VCALENDAR'];
+ const url=URL.createObjectURL(new Blob([lines.map(fold).join('\r\n')+'\r\n'],{type:'text/calendar;charset=utf-8'}));
+ const download=a('',url);download.download='lastslot-appointment.ics';download.click();setTimeout(()=>URL.revokeObjectURL(url),3000);
 }
 function actionButton(label,action,edit,extras={},confirmText){
  const error=el('span',undefined,'notice');error.role='alert';
@@ -248,16 +270,23 @@ function actionButton(label,action,edit,extras={},confirmText){
  },'button quiet');
  return add(el('span',undefined,'inline-control'),control,error);
 }
-function copyControl(label,value){
+function copyControl(label,value,{multiline=false}={}){
  const status=el('span',undefined,'small');status.role='status';
  const holder=el('div',undefined,'inline-control');
  const b=btn(label,async()=>{
   try{await navigator.clipboard.writeText(value);status.textContent='Copied.';}
-  catch{if(!holder.querySelector('input')){
-   const f=el('input',undefined,'copy-fallback');f.value=value;f.setAttribute('aria-label',label);f.readOnly=true;holder.append(f);f.select();
-  }status.textContent='Select the link and copy it.';}
+  catch{let f=holder.querySelector('input,textarea');
+   if(!f){
+    f=el(multiline?'textarea':'input',undefined,'copy-fallback');f.value=value;
+    if(multiline)f.rows=5;f.setAttribute('aria-label',label);f.readOnly=true;holder.append(f);
+   }
+   f.select();status.textContent=multiline?'Select and copy the notice.':'Select the link and copy it.';}
  },'button quiet');
  return add(holder,b,status);
+}
+function qrImage(href,title){
+ const q=qrcode(0,'M');q.addData(href);q.make();
+ const img=el('img');img.alt='QR code for '+title;img.src=q.createDataURL(5,20);return img;
 }
 function qrControl(href,title){
  const d=el('details',undefined,'qr');d.append(el('summary','Show QR label'));
@@ -265,7 +294,7 @@ function qrControl(href,title){
  d.addEventListener('toggle',()=>{
   if(!d.open||rendered)return;rendered=true;
   try{
-   const q=qrcode(0,'M');q.addData(href);q.make();const img=el('img');img.alt='QR code for '+title;img.src=q.createDataURL(5,20);d.append(img,a('Download QR',img.src,'subtle'));
+   const img=qrImage(href,title);d.append(img,a('Download QR',img.src,'subtle'));
    d.lastChild.download='field-kit-qr.gif';
   }catch{d.append(el('p','The QR code could not be generated. Use the share link instead.'));}
  });
@@ -276,6 +305,22 @@ function downloadHistory(history){
  const rows=[['Item','Borrower','Checked out (UTC)','Due (UTC)','Returned (UTC)'],...history.map(h=>[h.item,h.name,h.borrowed,h.due,h.returned])];
  const url=URL.createObjectURL(new Blob([rows.map(row=>row.map(csvCell).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'}));
  const download=a('',''+url);download.download='borrowboard-returns.csv';download.click();setTimeout(()=>URL.revokeObjectURL(url),3000);
+}
+function labelSheet(b){
+ const sheet=el('section',undefined,'label-sheet');sheet.hidden=true;
+ const control=btn('Prepare QR labels',()=>{
+  if(sheet.hidden){
+   const labels=b.items.map(i=>add(el('figure',undefined,'sheet-label'),
+    qrImage(link(boardURL(b.id,null,i.id)),i.title),el('figcaption',i.title)));
+   sheet.replaceChildren(el('h3',b.title+' · Gear labels'),add(el('div',undefined,'label-grid'),...labels));
+  }
+  sheet.hidden=!sheet.hidden;control.textContent=sheet.hidden?'Prepare QR labels':'Hide QR labels';
+  control.setAttribute('aria-expanded',String(!sheet.hidden));
+  print.hidden=sheet.hidden;
+ },'button quiet');
+ const print=btn('Print label sheet',()=>window.print());print.hidden=true;
+ control.setAttribute('aria-expanded','false');
+ return panel('QR label sheet',el('p','Print labels for every item on this board. Each code opens the public item page.','muted'),add(el('div',undefined,'actions'),control,print),sheet);
 }
 function viewBorrow(b,page,edit){
  const out=b.items.filter(i=>i.state==='out').length;
@@ -322,6 +367,7 @@ function viewBorrow(b,page,edit){
  }
  if(entries.length)refine();
  page.append(list);
+ if(b.owner&&b.items.length)page.append(labelSheet(b));
  if(b.owner&&b.history?.length){
   const history=el('details',undefined,'panel compose');history.append(el('summary','Return history · '+b.history.length),add(el('div',undefined,'actions'),btn('Download returns CSV',()=>downloadHistory(b.history),'button quiet'),actionButton('Clear return history','clear-history',edit,{},'Clear the saved return history?')));
   for(const h of b.history)history.append(add(el('article',undefined,'item'),el('h3',h.item),el('p',h.name+' · Returned '+date(h.returned),'muted')));
@@ -335,6 +381,13 @@ function viewRain(b,page,edit){
  page.append(panel('Current event status',badge(D.stages[latest.status],latest.status),add(el('dl'),row(latest.status==='cancelled'?'Originally scheduled':'Start',date(latest.when||b.when)),row('Format',formats.find(([k])=>k===format)[1]),...(format!=='online'?[row(latest.status==='cancelled'?'Original location':'Location',latest.where||b.where)]:[]),...(latest.note?[row('Update',latest.note)]:[]),row('Posted',date(latest.at)))));
  if(b.eventLink&&latest.status!=='cancelled')page.append(panel('Attend online',a('Open event link',b.eventLink,'button')));
  if(b.owner){
+  const statusText=D.stages[latest.status], cancelled=latest.status==='cancelled';
+  const notice=[b.title+' · '+statusText,
+   (cancelled?'Originally scheduled: ':'Start: ')+date(latest.when||b.when),
+   ...(cancelled?[]:[formats.find(([k])=>k===format)[1]+(format==='online'?'':' · '+(latest.where||b.where))]),
+   latest.note,b.announcement?.note,'Latest details: '+link(boardURL(b.id,null,null,null,b.listing))].filter(Boolean).join('\n');
+  page.append(panel('Share in your group chat',el('p','Copy the current status and its public link, then paste it into your chat. The link stays the same when plans change.','muted'),
+   copyControl('Copy change notice',notice,{multiline:true})));
   page.append(form('Event format',[...eventFields(b),input('Venue (for in-person and hybrid events)','where',{maxlength:120,required:false,value:b.where==='Online'&&b.format==='online'?'':b.where})],v=>edit({action:'event-format',...v}),'Save event format'));
   const status=input('Status','status',{options:Object.entries(D.stages).filter(([k])=>format!=='online'||k!=='moved'||latest.status==='moved'),value:latest.status});
   const where=input('New location','where',{maxlength:120,value:latest.where||'',required:false}),when=input('New start time','when',{type:'datetime-local',required:false}), note=input('Message to attendees','note',{maxlength:240,required:false,placeholder:'e.g. Use the east entrance'});
