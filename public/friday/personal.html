@@ -1,26 +1,26 @@
 <!doctype html>
 <html lang="en-CA"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#f7f7f2">
-<meta name="description" content="Try Friday Office Autopilot on your own list.">
-<title>My Autopilot | Friday Office</title><link rel="stylesheet" href="style.css?v=4"><link rel="icon" href="mark.svg"><script src="personal.js?v=1" defer></script>
+<meta name="description" content="Plan errands, appointments and routines alongside your work.">
+<title>My Autopilot | Friday Office</title><link rel="stylesheet" href="style.css?v=5"><link rel="icon" href="mark.svg"><script src="personal.js?v=2" defer></script>
 </head><body>
 <header class="shell nav"><a class="brand" href="./"><img src="mark.svg" alt="">Friday Office</a><a class="text-link" href="demo.html#autopilot">Try sample data ↗</a></header>
 <main class="shell dashboard personal">
-<section class="dash-head"><div><p class="eyebrow"><span class="dot"></span> PERSONAL WORKSPACE</p><h1>My Autopilot.</h1><p class="subtle">Put your work in one list. Run a pass to see what needs you next.</p></div><button id="new" type="button" class="button primary">+ Add work</button></section>
-<p class="demo-note" id="storage">Saved in this browser only. No account, email connection, or automatic sending. Use short labels instead of private client details.</p>
+<section class="dash-head"><div><p class="eyebrow"><span class="dot"></span> PERSONAL WORKSPACE</p><h1>My Autopilot.</h1><p class="subtle">Keep life and work in one list. See what’s due and what to do next.</p></div><button id="new" type="button" class="button primary">+ Add item</button></section>
+<p class="demo-note" id="storage">Saved in this browser only. No account, email connection, or automatic sending. Use short labels instead of private details.</p>
 <section id="summary" class="metrics" aria-label="Workspace summary"></section>
 <section class="workspace">
-<nav class="views" aria-label="Workspace views"><button type="button" data-view="list" aria-pressed="true">My work</button><button type="button" data-view="review" aria-pressed="false">Review queue</button></nav>
+<nav class="views" aria-label="Workspace views"><button type="button" data-view="today" aria-pressed="false">Today</button><button type="button" data-view="list" aria-pressed="true">All items</button><button type="button" data-view="review" aria-pressed="false">Review queue</button></nav>
 <div class="personal-bar"><p id="status" class="feedback" role="status"></p><button type="button" id="run" class="button primary">Run Autopilot</button></div>
 <section id="view" aria-label="Current view"></section>
 </section></main>
 <dialog id="edit" aria-labelledby="edit-title"><form id="work-form">
-<div class="dialog-top"><h2 id="edit-title">Add work</h2><button type="button" class="close" data-close="edit" aria-label="Close editor">×</button></div>
-<label>Short label<input name="title" required maxlength="90" placeholder="e.g. Follow up on invoice 104"></label>
-<div class="personal-fields"><label>What kind of work?<select name="kind"><option value="task">Task or follow-up</option><option value="invoice">Invoice</option><option value="receipt">Missing receipt</option><option value="schedule">Schedule change</option></select></label><label>Due date (optional)<input name="due" type="date"></label></div>
+<div class="dialog-top"><h2 id="edit-title">Add item</h2><button type="button" class="close" data-close="edit" aria-label="Close editor">×</button></div>
+<label>Short label<input name="title" required maxlength="90" placeholder="e.g. Put the bins out"></label>
+<div class="personal-fields"><label>What kind of item?<select name="kind" aria-label="Item type"><optgroup label="Everyday life"><option value="task">Task or follow-up</option><option value="errand">Errand</option><option value="home">Home care</option><option value="appointment">Appointment</option><option value="bill">Bill or renewal</option></optgroup><optgroup label="Work"><option value="invoice">Invoice</option><option value="receipt">Missing receipt</option><option value="schedule">Schedule change</option></optgroup></select></label><label>Due date (optional)<input name="due" type="date"></label><label>Repeat<select name="repeat" aria-label="Repeat"><option value="none">Doesn’t repeat</option><option value="daily">Every day</option><option value="weekly">Every week</option><option value="monthly">Every month</option><option value="yearly">Every year</option></select></label></div>
 <label id="amount-field" hidden>Open invoice amount in CAD (optional)<input name="amount" type="number" inputmode="decimal" min=".01" max="1000000" step=".01" disabled></label>
 <label class="auto-rule"><input name="decision" type="checkbox"> I need to make a decision before this can move</label>
-<div class="dialog-actions"><button type="submit" class="button primary">Save work</button></div>
+<div class="dialog-actions"><button type="submit" class="button primary">Save item</button></div>
 </form></dialog>
 <dialog id="detail" aria-labelledby="detail-title"><div class="dialog-top"><h2 id="detail-title"></h2><button type="button" class="close" data-close="detail" aria-label="Close details">×</button></div><div id="detail-body"></div></dialog>
 <noscript><p class="shell">Turn on JavaScript to use your workspace.</p></noscript>
