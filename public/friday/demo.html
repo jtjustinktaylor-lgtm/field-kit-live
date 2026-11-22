@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en-CA"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#f7f7f2"><title>Sample workspace | Friday Office</title><link rel="stylesheet" href="style.css?v=1"><link rel="icon" href="mark.svg"><script defer src="demo.js?v=1"></script></head>
+<body>
+<header class="shell nav"><a class="brand" href="./"><img src="mark.svg" alt="">Friday Office</a><a class="text-link" href="./">About the pilot <span aria-hidden="true">↗</span></a></header>
+<main class="shell dashboard">
+ <div class="dash-head"><div><p class="eyebrow"><span class="dot"></span> SAMPLE WORKSPACE</p><h1>Brightline Cleaning</h1><p class="subtle">Week 04 · Your Friday handoff</p></div><button type="button" id="reset" class="button light">Reset sample</button></div>
+ <p class="demo-note">Fictional company and records. Changes stay in this session. No emails are sent and no books are changed.</p>
+ <section id="metrics" class="metrics" aria-label="Weekly summary"></section>
+ <section class="workspace">
+ <nav class="views" aria-label="Workspace views"><button type="button" data-view="invoices" aria-pressed="true">Invoices</button><button type="button" data-view="receipts" aria-pressed="false">Receipts</button><button type="button" data-view="report" aria-pressed="false">Friday report</button></nav>
+ <section id="view" aria-label="Current view"></section>
+ </section>
+</main>
+<dialog id="detail" aria-labelledby="detail-title"><div class="dialog-top"><h2 id="detail-title"></h2><button type="button" data-close="detail" aria-label="Close details" class="close">×</button></div><div id="detail-body"></div></dialog>
+<dialog id="setup" aria-labelledby="setup-title"><div class="dialog-top"><h2 id="setup-title">Pilot setup checklist</h2><button type="button" data-close="setup" aria-label="Close checklist" class="close">×</button></div>
+<p>For a setup conversation, bring the name of your accounting tool and a rough weekly invoice and receipt count. Agree on a secure handoff before sharing any exports.</p><ul><li>One company and one person to approve the weekly work</li><li>An open-invoice export and a receipt or expense list</li><li>A weekly cutoff and an agreed place to deliver the report</li></ul><p class="fine">There’s no upload or payment step in this sample.</p></dialog>
+<noscript><p class="shell">Turn on JavaScript to use the sample workspace.</p></noscript>
+</body></html>
