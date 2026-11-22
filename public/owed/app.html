@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en-CA"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#101c18">
+<title>Refund tracker | Owed</title><link rel="stylesheet" href="style.css?v=1"><link rel="icon" href="mark.svg" type="image/svg+xml"><script src="app.js?v=1" defer></script>
+</head><body class="app">
+<header class="app-top"><div class="shell nav"><a class="brand" href="./"><img src="mark.svg" alt="">owed<span>.</span></a><a class="text-link" href="./">About Owed <span aria-hidden="true">↗</span></a></div></header>
+<main class="shell dash">
+<section class="dash-head"><div><p class="eyebrow"><span class="dot"></span> REFUND TRACKER</p><h1>Your refunds.</h1><p>See what’s due and follow up in one place.</p></div><button class="button primary" id="add">+ Track a refund</button></section>
+<p class="storage-note" id="storage-note">Saved in this browser only. No data is sent to Owed. Follow-up dates are shown here; the pilot doesn’t send reminders.</p>
+<p class="feedback" id="feedback" role="status" hidden></p>
+<section id="demo-banner" class="demo-banner" hidden><span>You’re viewing sample refunds. Changes in this view don’t affect your saved refunds.</span><button class="button thin" id="exit-demo">Exit sample</button></section>
+<section class="stats" id="stats" aria-label="Refund summary"></section>
+<section class="queue"><div class="queue-head"><h2>Refunds</h2><div class="filters" role="group" aria-label="Filter refunds">
+<button type="button" data-filter="all" aria-pressed="true">All</button><button type="button" data-filter="due" aria-pressed="false">Follow up</button><button type="button" data-filter="received" aria-pressed="false">Received</button>
+</div></div><div id="records"></div></section>
+</main>
+<dialog id="editor" aria-labelledby="editor-title"><form id="refund-form"><div class="dialog-top"><h2 id="editor-title">Track a refund</h2><button type="button" class="close" data-close="editor" aria-label="Close">×</button></div>
+<label>Business<input name="business" maxlength="100" placeholder="e.g. Northline Hotel" required></label>
+<div class="form-grid"><label>Amount<input name="amount" type="number" inputmode="decimal" min=".01" max="1000000" step=".01" placeholder="240.00" required></label><label>Currency<select name="currency"><option>CAD</option><option>USD</option><option>GBP</option><option>EUR</option><option>AUD</option></select></label></div>
+<label>When did they say it would arrive?<input name="due" type="date" required></label>
+<p class="fine">You can add your booking or order reference directly to the email you send.</p><button class="button primary" type="submit">Save refund</button></form></dialog>
+<dialog id="case-dialog" aria-labelledby="case-title"><div class="dialog-top"><h2 id="case-title"></h2><button type="button" class="close" data-close="case-dialog" aria-label="Close">×</button></div><div id="case-body"></div></dialog>
+<noscript><p class="shell">Turn on JavaScript to use the tracker.</p></noscript>
+</body></html>
