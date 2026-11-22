@@ -1,4 +1,5 @@
 import domain from './public/domain.js';
+import schema from './migrations/0001_boards.sql';
 
 const maxBody = 8192;
 const maxAttempts = 5;
@@ -69,8 +70,19 @@ async function readInput(request) {
   }
 }
 
+async function withBoards(db, query) {
+  try {
+    return await query();
+  } catch (error) {
+    const message = String(error?.message ?? '') + ' ' + String(error?.cause?.message ?? '');
+    if (!/no such table:\s*(?:main\.)?boards\b/i.test(message)) throw error;
+    await db.prepare(schema).run();
+    return query();
+  }
+}
+
 async function get(db, boardId) {
-  const row = await db.prepare('SELECT secret, data, revision FROM boards WHERE id = ?').bind(boardId).first();
+  const row = await withBoards(db, () => db.prepare('SELECT secret, data, revision FROM boards WHERE id = ?').bind(boardId).first());
   if (!row) fail('This page could not be found.', 404);
   return row;
 }
@@ -109,6 +121,7 @@ async function serve(request, env) {
   if (method !== 'GET' && origin && origin !== url.origin) fail('Use the same site to submit.', 403);
 
   // The primary reads here keep availability and receipts consistent after writes.
+  if (!env.DB) fail('The database is not connected to this deployment.', 503);
   const db = env.DB.withSession('first-primary');
   if (method === 'POST' && pathname === '/api/boards') {
     if (!env.PILOT_ACCESS_CODE) fail('Workspace signup is temporarily unavailable. Existing public links still work.', 503);
@@ -117,8 +130,9 @@ async function serve(request, env) {
       fail('Enter the pilot access code to publish a new page.', 403);
     }
     const access = secret(), t = now(), board = domain.create(input, t, id);
-    await db.prepare('INSERT INTO boards (id, secret, data) VALUES (?, ?, ?)')
-      .bind(board.id, await digest(access), JSON.stringify(board)).run();
+    const hash = await digest(access);
+    await withBoards(db, () => db.prepare('INSERT INTO boards (id, secret, data) VALUES (?, ?, ?)')
+      .bind(board.id, hash, JSON.stringify(board)).run());
     return json({board: domain.present(board, t, true), secret: access}, 201);
   }
 
